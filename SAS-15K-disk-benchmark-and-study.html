@@ -103,6 +103,7 @@ So, I decided to test it myself.
 <li><a href="#sec-4">4 Test result: fio</a>
 <ul>
 <li><a href="#sec-4-1">4.1 randread (with different block size and IO depth)</a></li>
+<li><a href="#sec-4-2">4.2 randwrite (with different block size and IO depth)</a></li>
 </ul>
 </li>
 </ul>
@@ -216,7 +217,7 @@ We can see that raw sequential read for SAS 15K disk can reach about <b>200MB/s<
 
 
 <p>
-So, I am going to test the performance under all different conditions. To achieve this, I used the tool <a href="https://github.com/xzpeter/fiox">fiox</a> to help me do all these use cases automatically (fiox is a Perl written wrapper by me that added variable support feature in <i>.fio</i> configure files). 
+So, I am going to test the performance under all different conditions. To achieve this, I used the tool <a href="https://github.com/xzpeter/fiox">fiox</a> to help me do all these use cases automatically (fiox is a Perl written wrapper by me that added variable support feature in <i>.fio</i> configure files). Also, I used <a href="http://github.com/xzpeter/DataDrawer">another tool</a> to generate the graphs for me, which internally used Gnuplot as backend. 
 </p>
 <p>
 Here are the results. 
@@ -236,7 +237,39 @@ Here are the results.
 <img title="Random Read Test Result"
 src="randread-iops.png"/>
 </a></div>
+
+<p>
+So we can see that, IO depth does have a great impact on the random read IO pattern. From experienced engineers we can know that, it is possibly because the optimization of SAS controller in the read-queue algorithm. As you may know that, for un-cached IO access, most of the time is consumed in the spinning and seeking of disk. By improving the queue algorithm, when there are concurrent IO requests on one disk, the controller can get one optimized track to complete all the IO requests with minimum time for track seeking and disk spinning. This kind of algorithm cannot be seen when there are only one worker thread that requesting IO. 
+</p>
+<p>
+Meanwhile, there is some kind of drop after threads number reaches <i>64</i>. 
+</p>
+<p>
+So we can say that: <b>For small IO, 15K SAS can reach about 350 IOPS with single thread and easily reach 1000 when using 64 concurrent threads</b>. 
+</p>
 </div>
+
+</div>
+
+<div id="outline-container-4-2" class="outline-3">
+<h3 id="sec-4-2"><span class="section-number-3">4.2</span> randwrite (with different block size and IO depth)</h3>
+<div class="outline-text-3" id="text-4-2">
+
+
+   
+
+<div align="center">
+<a href="randwrite-iops.png">
+<img title="Random Write Test Result"
+src="randwrite-iops.png"/>
+</a></div>
+
+<p>
+We cannot see the same thing when using write IO pattern. I assume that is the effect of write cache mechanism. Though I don't know which layer the buffer should belongs to, it seems that IO depth has little effect on random write case. And we can always get <b>more than 700 IOPS even within one single thread when doing random write for small IOs</b>. 
+</p>
+<p>
+Please let me know if there is anything questionable in the data. :)
+</p></div>
 </div>
 </div>
 </div>

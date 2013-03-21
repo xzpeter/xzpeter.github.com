@@ -64,7 +64,7 @@ We can see that raw sequential read for SAS 15K disk can reach about *200MB/s*.
 - access pattern: seq/random
 - block size: 512B, 4KB, 8KB, ...
 
-So, I am going to test the performance under all different conditions. To achieve this, I used the tool [[https://github.com/xzpeter/fiox][fiox]] to help me do all these use cases automatically (fiox is a Perl written wrapper by me that added variable support feature in /.fio/ configure files). 
+So, I am going to test the performance under all different conditions. To achieve this, I used the tool [[https://github.com/xzpeter/fiox][fiox]] to help me do all these use cases automatically (fiox is a Perl written wrapper by me that added variable support feature in /.fio/ configure files). Also, I used [[http://github.com/xzpeter/DataDrawer][another tool]] to generate the graphs for me, which internally used Gnuplot as backend. 
 
 Here are the results. 
 
@@ -77,3 +77,23 @@ Here are the results.
 src="randread-iops.png"/>
 </a></div>
 #+END_HTML
+
+So we can see that, IO depth does have a great impact on the random read IO pattern. From experienced engineers we can know that, it is possibly because the optimization of SAS controller in the read-queue algorithm. As you may know that, for un-cached IO access, most of the time is consumed in the spinning and seeking of disk. By improving the queue algorithm, when there are concurrent IO requests on one disk, the controller can get one optimized track to complete all the IO requests with minimum time for track seeking and disk spinning. This kind of algorithm cannot be seen when there are only one worker thread that requesting IO. 
+
+Meanwhile, there is some kind of drop after threads number reaches /64/. 
+
+So we can say that: *For small IO, 15K SAS can reach about 350 IOPS with single thread and easily reach 1000 when using 64 concurrent threads*. 
+
+** randwrite (with different block size and IO depth)
+   
+#+BEGIN_HTML
+<div align="center">
+<a href="randwrite-iops.png">
+<img title="Random Write Test Result"
+src="randwrite-iops.png"/>
+</a></div>
+#+END_HTML
+
+We cannot see the same thing when using write IO pattern. I assume that is the effect of write cache mechanism. Though I don't know which layer the buffer should belongs to, it seems that IO depth has little effect on random write case. And we can always get *more than 700 IOPS even within one single thread when doing random write for small IOs*. 
+
+Please let me know if there is anything questionable in the data. :)
