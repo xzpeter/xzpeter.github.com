@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+lang="en" xml:lang="en">
+<head>
+<title>Performance measurement of SAS 15K drive</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="[2013-02-08 五 13:14]"/>
+<meta name="author" content="Peter Xu"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+
+</head>
+<body>
+
+<div id="preamble">
+
+</div>
+
+<div id="content">
+<h1 class="title">Performance measurement of SAS 15K drive</h1>
+
+<p>SAS drives are frequently used in enterprises. To have a better understanding on the big picture of current enterprise level storage, it's essential for us to be acquaintance with how it performs on one single SAS disk. We can find some documents telling us about it <i>roughly</i>, but I didn't found one that is detailed enough, e.g., to show how SAS disk performs when we use different number of threads to access the data (or to say, different IO depth). 
+</p>
+<p>
+So, I decided to test it myself. 
+</p>
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 Goal</a></li>
+<li><a href="#sec-2">2 Environment</a></li>
+<li><a href="#sec-3">3 Test result: hdparm</a></li>
+<li><a href="#sec-4">4 Test result: fio</a>
+<ul>
+<li><a href="#sec-4-1">4.1 randread (with different block size and IO depth)</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> Goal</h2>
+<div class="outline-text-2" id="text-1">
+
+
+<p>
+To see how SAS disk performs with different IO depth. Here, IO depth may also mean:
+</p><ul>
+<li>number of threads that doing IO
+</li>
+<li>number of outstanding IO
+</li>
+</ul>
+
+
+</div>
+
+</div>
+
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> Environment</h2>
+<div class="outline-text-2" id="text-2">
+
+
+<p>  
+I am using Linux with self-compiled kernel version 3.6.5. 
+</p>
+
+
+<pre class="brush:shell">
+xz-ws xz # uname -a
+Linux xz-ws 3.6.5 #1 SMP Thu Nov 15 15:57:48 CST 2012 x86_64 GNU/Linux
+</pre>
+
+<p>
+I used one 300GB 15K SAS disk (<b>Seagate</b>, module number <b>ST3300657SS</b>) in the test, which is connected to my workstation via SAS HBA controller. It is shown as block device <b>/dev/sdb</b> on my Linux system. 
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> Test result: hdparm</h2>
+<div class="outline-text-2" id="text-3">
+
+
+<p>  
+<b>hdparm</b> is a tool under Linux to get/set SATA/IDE device parameters, which also can be used to do basic benchmark of disks using <i>-t/T</i> params without file system overheads. So we can have a rough-idea about the performance of SAS disk using this tool, though only for seq read IO pattern. 
+</p>
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption></caption>
+<colgroup><col class="left" /><col class="left" />
+</colgroup>
+<thead>
+<tr><th scope="col" class="left">param</th><th scope="col" class="left">usage</th></tr>
+</thead>
+<tbody>
+<tr><td class="left">-t</td><td class="left">perform un-cached seq read</td></tr>
+<tr><td class="left">-T</td><td class="left">perform cached seq read</td></tr>
+</tbody>
+</table>
+
+
+
+
+<pre class="brush:shell">
+xz-ws xz # hdparm -tT /dev/sdb
+
+/dev/sdb:
+ Timing cached reads:   17362 MB in  2.00 seconds = 8691.60 MB/sec
+ Timing buffered disk reads: 594 MB in  3.00 seconds = 197.69 MB/sec
+xz-ws xz # hdparm -tT /dev/sdb
+
+/dev/sdb:
+ Timing cached reads:   17388 MB in  2.00 seconds = 8705.05 MB/sec
+ Timing buffered disk reads: 594 MB in  3.00 seconds = 197.94 MB/sec
+</pre>
+
+<p>
+Here I also tested un-cached case, though not too useful for us. 
+</p>
+<p>
+We can see that raw sequential read for SAS 15K disk can reach about <b>200MB/s</b>. 
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Test result: fio</h2>
+<div class="outline-text-2" id="text-4">
+
+
+<p>
+<a href="http://freecode.com/projects/fio">Fio</a> is a IO test tool under Linux (actually it now should support all kinds of operation systems, like Windows, MacOS and Android). There are many parameters that may influnce the result:
+</p>
+<ul>
+<li>direction: read/write
+</li>
+<li>access pattern: seq/random
+</li>
+<li>block size: 512B, 4KB, 8KB, &hellip;
+</li>
+</ul>
+
+
+<p>
+So, I am going to test the performance under all different conditions. To achieve this, I used the tool <a href="https://github.com/xzpeter/fiox">fiox</a> to help me do all these use cases automatically (fiox is a Perl written wrapper by me that added variable support feature in <i>.fio</i> configure files). 
+</p>
+<p>
+Here are the results. 
+</p>
+
+</div>
+
+<div id="outline-container-4-1" class="outline-3">
+<h3 id="sec-4-1"><span class="section-number-3">4.1</span> randread (with different block size and IO depth)</h3>
+<div class="outline-text-3" id="text-4-1">
+
+
+
+
+<div align="center">
+<a href="randread-iops.png">
+<img title="Random Read Test Result"
+src="randread-iops.png"/>
+</a></div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="postamble">
+<p class="date">Date: [2013-02-08 五 13:14]</p>
+<p class="author">Author: Peter Xu</p>
+<p class="creator">Org version 7.7 with Emacs version 24</p>
+<a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
+
+</div>
+</body>
+</html>

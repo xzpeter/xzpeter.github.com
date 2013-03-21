@@ -1,0 +1,79 @@
+#+DATE: [2013-02-08 五 13:14]
+#+OPTIONS: toc:t num:t todo:nil pri:nil tags:nil ^:nil TeX:nil
+#+CATEGORY: Software
+#+TAGS: SAS, benchmark, fio, Perl
+#+DESCRIPTION:
+#+TITLE: Performance measurement of SAS 15K drive
+
+SAS drives are frequently used in enterprises. To have a better understanding on the big picture of current enterprise level storage, it's essential for us to be acquaintance with how it performs on one single SAS disk. We can find some documents telling us about it /roughly/, but I didn't found one that is detailed enough, e.g., to show how SAS disk performs when we use different number of threads to access the data (or to say, different IO depth). 
+
+So, I decided to test it myself. 
+
+* Goal
+
+To see how SAS disk performs with different IO depth. Here, IO depth may also mean:
+- number of threads that doing IO
+- number of outstanding IO
+
+* Environment
+  
+I am using Linux with self-compiled kernel version 3.6.5. 
+
+#+BEGIN_HTML
+<pre class="brush:shell">
+xz-ws xz # uname -a
+Linux xz-ws 3.6.5 #1 SMP Thu Nov 15 15:57:48 CST 2012 x86_64 GNU/Linux
+</pre>
+#+END_HTML
+
+I used one 300GB 15K SAS disk (*Seagate*, module number *ST3300657SS*) in the test, which is connected to my workstation via SAS HBA controller. It is shown as block device */dev/sdb* on my Linux system. 
+
+* Test result: hdparm
+  
+*hdparm* is a tool under Linux to get/set SATA/IDE device parameters, which also can be used to do basic benchmark of disks using /-t/T/ params without file system overheads. So we can have a rough-idea about the performance of SAS disk using this tool, though only for seq read IO pattern. 
+
+| param | usage                      |
+|-------+----------------------------|
+| -t    | perform un-cached seq read |
+| -T    | perform cached seq read    |
+
+#+BEGIN_HTML
+<pre class="brush:shell">
+xz-ws xz # hdparm -tT /dev/sdb
+
+/dev/sdb:
+ Timing cached reads:   17362 MB in  2.00 seconds = 8691.60 MB/sec
+ Timing buffered disk reads: 594 MB in  3.00 seconds = 197.69 MB/sec
+xz-ws xz # hdparm -tT /dev/sdb
+
+/dev/sdb:
+ Timing cached reads:   17388 MB in  2.00 seconds = 8705.05 MB/sec
+ Timing buffered disk reads: 594 MB in  3.00 seconds = 197.94 MB/sec
+</pre>
+#+END_HTML
+
+Here I also tested un-cached case, though not too useful for us. 
+
+We can see that raw sequential read for SAS 15K disk can reach about *200MB/s*. 
+
+* Test result: fio
+
+[[http://freecode.com/projects/fio][Fio]] is a IO test tool under Linux (actually it now should support all kinds of operation systems, like Windows, MacOS and Android). There are many parameters that may influnce the result:
+
+- direction: read/write
+- access pattern: seq/random
+- block size: 512B, 4KB, 8KB, ...
+
+So, I am going to test the performance under all different conditions. To achieve this, I used the tool [[https://github.com/xzpeter/fiox][fiox]] to help me do all these use cases automatically (fiox is a Perl written wrapper by me that added variable support feature in /.fio/ configure files). 
+
+Here are the results. 
+
+** randread (with different block size and IO depth)
+
+#+BEGIN_HTML
+<div align="center">
+<a href="randread-iops.png">
+<img title="Random Read Test Result"
+src="randread-iops.png"/>
+</a></div>
+#+END_HTML
