@@ -1,6 +1,7 @@
 #+TITLE: xzpeter's hut
 #+OPTIONS: toc:t num:t
 
-- [[SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]]
+- [[file:SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]]
+
 
 If you want to see a more fancy one, come over and see my [[http://xzpeter.org][blog]].
