@@ -74,7 +74,7 @@ Here are the results.
 <div align="center">
 <a href="randread-iops.png">
 <img title="Random Read Test Result"
-src="randread-iops.png"/>
+src="randread-iops.png" width="60%" />
 </a></div>
 #+END_HTML
 
@@ -90,7 +90,7 @@ So we can say that: *For small IO, 15K SAS can reach about 350 IOPS with single 
 <div align="center">
 <a href="randwrite-iops.png">
 <img title="Random Write Test Result"
-src="randwrite-iops.png"/>
+src="randwrite-iops.png" width="60%"/>
 </a></div>
 #+END_HTML
 
