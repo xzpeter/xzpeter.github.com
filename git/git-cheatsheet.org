@@ -1,4 +1,6 @@
 #+TITLE:Git cheatsheet
+#+OPTIONS: toc:nil num:nil
+*** usage
  * file lifecycle: *guntracked -> unmodified -> modified -> staged*
    * untracked: all those files never tracked by current repo
    * unmodified: all the tracked ones (after commit, all files are in this state)
@@ -19,6 +21,7 @@
  * *git reset*
    * /soft/: move file from /staged/ to /unmodified/ (or /untracked/ if new)
  * *git checkout*
+   * /do two things/: change HEAD to the branch/commit; revert all files to that state
    * /-- ${file}/: recover one file from repo database (dangerous, modification lost)
  * *git remote* 
    * default or /-v/: list current remote sites
@@ -28,9 +31,22 @@
    * /${remote_name}: fetch all data from remote site
  * *git blame*: [${filename}] to track who and when changed which file
  * *git show*: [${id}:${file}] check on one single commit (with single file) in detail
+ * *git bisect*: start -> bad -> good COMMIT -> [good/bad...] -> FOUND! -> reset
+ * *git grep*
+ * *git tag*
+   * (normal): lightweighted tag
+   * /-a/: annotated tag
+   * /-s/: signed tag
+   * /-v/: verify a signed tag
+   * (push tags to remote): have to call 'git push remote --tags/${tag}'
+ * *git branch*
+   * internal: 
+*** *internals*
+ * branch: /only a 40-char SHA1 checksum, points to a commit point/
+ * HEAD: pointer to current work branch, e.g.:
+   * HEAD(label to br name)->master(40B)->commit(40B)->tree(snap)->@{blobs}
 	 
-
-* questions
+*** questions
 - how to list all the fetched branches? like test/master?
 - what does the refs/head/master mean? the format? 
 
