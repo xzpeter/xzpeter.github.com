@@ -1,11 +1,8 @@
 #+TITLE:Git cheatsheet
 #+OPTIONS: toc:nil num:nil
+#+LaTeX_CLASS_OPTIONS: [a4paper,twoside,twocolumn] 
+#+AUTHOR: xzpeter
 *** usage
- * file lifecycle: *guntracked -> unmodified -> modified -> staged*
-   * untracked: all those files never tracked by current repo
-   * unmodified: all the tracked ones (after commit, all files are in this state)
-   * modified: have modified but not 'git add' into staged state
-   * staged: use 'git add' on the file (whenever)
  * *git diff*
    * normal: diff between /modified/ with /staged/
    * /--staged/ or /--cached/: diff between /staged/ with /unmodified/
@@ -39,12 +36,19 @@
    * /-s/: signed tag
    * /-v/: verify a signed tag
    * (push tags to remote): have to call 'git push remote --tags/${tag}'
- * *git branch*
-   * internal: 
 *** *internals*
- * branch: /only a 40-char SHA1 checksum, points to a commit point/
- * HEAD: pointer to current work branch, e.g.:
-   * HEAD(label to br name)->master(40B)->commit(40B)->tree(snap)->@{blobs}
+ * file lifecycle: *guntracked -> unmodified -> modified -> staged*
+   * untracked: all those files never tracked by current repo
+   * unmodified: all the tracked ones (after commit, all files are in this state)
+   * modified: have modified but not 'git add' into staged state
+   * staged: use 'git add' on the file (whenever)
+ * branches: /only a 40-char SHA1 checksum, points to a commit point/
+   * HEAD: pointer to current work branch, e.g.: 
+	 HEAD(label to br name)->master(40B)->commit(40B) [ ->tree(snap)->@{blobs} ]
+   * add: /checkout -b ${br} [${commit}]/ == /branch ${br} ${commit}; checkout ${branch}'
+   * delete: /branch -d ${br}/ for local; /push ${site} :${br}/ for remote
+   * list: /--merged/ for useless ones; /--no-merged/ for new ones; nothing for all
+   * workflow: /co -b topic/ -> /commits.../ -> /co master; merge topic/ [ -> /br -d topic/ ]
 	 
 *** questions
 - how to list all the fetched branches? like test/master?
