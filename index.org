@@ -1,7 +1,11 @@
 #+TITLE: xzpeter's hut
 #+OPTIONS: toc:t num:t
 
+* Introduction
+
+  This is Peter Xu's home page. It's not pretty, only a place to put
+  something in.
+
+* Articles
+
 - [[file:SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]]
-
-
-If you want to see a more fancy one, come over and see my [[http://xzpeter.org][blog]].
