@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+lang="en" xml:lang="en">
+<head>
+<title>QEMU Device Assignment with vIOMMU Protection</title>
+<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="2017-03-02 13:02:36 CST"/>
+<meta name="author" content="Peter Xu"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+
+</head>
+<body>
+
+<div id="preamble">
+
+</div>
+
+<div id="content">
+<h1 class="title">QEMU Device Assignment with vIOMMU Protection</h1>
+
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 About </a></li>
+<li><a href="#sec-2">2 Guest Device Assignment in General </a></li>
+<li><a href="#sec-3">3 Use Case 1: Guest Device Assignment with vIOMMU </a></li>
+<li><a href="#sec-4">4 Use Case 2: Guest Device Assignment with vIOMMU - DPDK Scenario </a></li>
+<li><a href="#sec-5">5 Use Case 3: Nested Guest Device Assignment </a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> About </h2>
+<div class="outline-text-2" id="text-1">
+
+
+<p>
+This page describes use cases for device assignment with vIOMMU.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> Guest Device Assignment in General </h2>
+<div class="outline-text-2" id="text-2">
+
+
+<p>  
+Below picture shows a basic device assignment use case in QEMU.
+</p>
+
+<div class="figure">
+<p><img src="vfio-device-assignment-common.png"  alt="vfio-device-assignment-common.png" /></p>
+<p>Device Assignment without vIOMMU</p>
+</div>
+
+<p>
+Let's consider a generic <b>PCI device</b> above, which is a real hardware
+attached to host system. The host can use generic kernel drivers to
+drivet the device. In that case, all the reads/writes of that device
+will be protected by <b>host IOMMU</b>, which is safe. The <b>protected DMAs</b>
+are shown in <i>green arrow</i>.
+</p>
+<p>
+The PCI device can also be assigned to a guest. By leveraging <b>VFIO driver</b> in the host kernel, the device can be exclusively managed by
+any userspace programs like QEMU. In the guest with assigned device,
+we should be able to see exactly the same device just like in the host
+(as shown in the <i>imaginary line</i>). Here, the hypervisor is capable of
+modifying the device information, like capability bits, etc.. But
+that's out of the scope of this page. By assigning the device to a
+guest, we can have merely the same performance in guest comparing to
+in the host.
+</p>
+<p>
+On the other hand, when the device is assigned to the guest, guest
+memory address space is totally exposed to the hardware PCI device. So
+there would have no protection when the device do DMAs to the guest
+system, especially writes. Malicious writes can corrupt the guest in
+no time. Those <b>unsafe DMAs</b> are shown with a <i>red arrow</i>.
+</p>
+<p>
+That's why we need a vIOMMU in the guest.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> Use Case 1: Guest Device Assignment with vIOMMU </h2>
+<div class="outline-text-2" id="text-3">
+
+
+<p>
+To protect the guest memory from malicious assigned devices, we can
+have vIOMMU in the guest, just like what host IOMMU does to the host.
+Then the picture will be like:
+</p>
+
+<div class="figure">
+<p><img src="vfio-device-assignment-viommu.png"  alt="vfio-device-assignment-viommu.png" /></p>
+<p>Device Assignment with vIOMMU</p>
+</div>
+
+<p>
+In the above figure, the only difference is that we introduced guest
+vIOMMU to do DMA protections. With that, guest DMAs are safe now.
+</p>
+<p>
+Here, our use case targets at the guests that are using kernel
+drivers. One thing to mention is that, currently this use case will
+possibly have magnificant performance impact on the assigned device,
+due to dynamic allocation of guest IOVA mapping will cause lots of
+work in the hypervisor to sync the shadow page table in the real
+hardware. More work is needed to further reduce the negative impact
+that the protection has brought.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Use Case 2: Guest Device Assignment with vIOMMU - DPDK Scenario </h2>
+<div class="outline-text-2" id="text-4">
+
+
+<p>  
+DPDK (the so-called DataPlan Development Kit) is vastly used in high
+performance scenarios, which moved the kernel space drivers into
+userspace for the sake of even better performance. That introduce a
+problem that since we cannot really trust any userspace application
+program, we cannot trust DPDK applications as well, especially if it
+can directly manipulate the hardware. Here vIOMMU protects not only
+the malicious devices like hardware errors, it also protects guest
+from buggy userspace drivers like DPDK (via VFIO driver in the guest).
+</p>
+<p>
+Actually there are at least three ways that DPDK applications can
+manage a device in the userspace (and these methods are mostly general
+as well not limited to DPDK use cases):
+</p>
+<ul>
+<li>VFIO
+</li>
+<li>VFIO no-iommu mode
+</li>
+<li>UIO
+</li>
+</ul>
+
+
+<p>
+UIO is going to be obsolete since its lacking of features and
+unsafety.
+</p>
+<p>
+Let's consider a use case with guest DPDK application with two PCI
+devices. To clarify the difference of above methods, I used different
+ways to assign the device to the DPDK applications:
+</p>
+
+<div class="figure">
+<p><img src="vfio-device-assignment-dpdk.png"  alt="vfio-device-assignment-dpdk.png" /></p>
+<p>Device Assignment with vIOMMU - DPDK Scenario</p>
+</div>
+
+<p>
+In above case, <b>PCI Device 1</b> and <b>PCI Device 2</b> are two devices that
+are assigned to guest DPDK applications. In the host, both of the
+devices are assigned to guest using kernel VFIO driver (here we cannot
+use either "VFIO no-iommu mode" or "UIO", the reason behind is out of
+the scope of this page though :). While in the guest, when we assign
+devices to DPDK applications, we can use one of the three methods
+mentioned above. However, only if we assign device with generic VFIO
+driver (which <i>requires</i> a vIOMMU) could we get a safely assigned
+device. Either assigning the device by "UIO" or "VFIO no-iommu mode"
+is unsafe.
+</p>
+<p>
+In our case, <b>PCI Device 1</b> is <b>safe</b>, while <b>PCI Device 2</b> is <b>unsafe</b>.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-5" class="outline-2">
+<h2 id="sec-5"><span class="section-number-2">5</span> Use Case 3: Nested Guest Device Assignment </h2>
+<div class="outline-text-2" id="text-5">
+
+
+<p>
+Another use case that device assignment with vIOMMU would help is that
+nested device assignment will work just like magic with it.
+</p>
+<p>
+As we have mentioned in the first section, an IOMMU is required for
+device assignment to work. Here, to assign a L1 guest device to a L2
+guest, we also need a vIOMMU inside L1 guest to build up the page
+mappings required for device assignment work. 
+</p>
+<p>
+Nested device assignment looks like:
+</p>
+
+<div class="figure">
+<p><img src="vfio-device-assignment-nested.png"  alt="vfio-device-assignment-nested.png" /></p>
+<p>Nested Device Assignment</p>
+</div>
+</div>
+</div>
+</div>
+
+<div id="postamble">
+<p class="date">Date: 2017-03-02 13:02:36 CST</p>
+<p class="author">Author: Peter Xu</p>
+<p class="creator">Org version 7.7 with Emacs version 25</p>
+<a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
+
+</div>
+</body>
+</html>
