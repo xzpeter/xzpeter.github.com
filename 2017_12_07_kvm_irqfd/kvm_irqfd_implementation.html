@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+lang="en" xml:lang="en">
+<head>
+<title>KVM Irqfd Introduction</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="2017-12-07 15:46:05 CST"/>
+<meta name="author" content="peterx"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+
+</head>
+<body>
+
+<div id="preamble">
+
+</div>
+
+<div id="content">
+<h1 class="title">KVM Irqfd Introduction</h1>
+
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 About this page </a></li>
+<li><a href="#sec-2">2 What does irqfd do? </a></li>
+<li><a href="#sec-3">3 How is irqfd implemented? </a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> About this page </h2>
+<div class="outline-text-2" id="text-1">
+
+
+<p>
+  This page is going to sololy talk about irqfd in KVM, on what it is,
+  and also how it is implemented.  The code references come from Linux
+  4.14.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> What does irqfd do? </h2>
+<div class="outline-text-2" id="text-2">
+
+
+<p>
+  Irqfd in KVM is implemented based on eventfd in Linux.  Eventfd is a
+  simple and fast notification mechanism in Linux kernel to deliver a
+  single and simple message, just like interrupts.
+</p>
+<p>
+  As its name shows, irqfd is basically a fd that is bound to an
+  interrupt in the virtual machine.  Here the fd must be an eventfd.
+  The delivery path is single direction, say, interrupt is delivered
+  from outside world into the guest.  There is another thing called
+  ioeventfd which does the reverse thing that is a hypercall from
+  guest to the host, which is out of the scope of this article.
+</p>
+<p>  
+  With irqfd, if we want to trigger an interrupt we have setup, what
+  we need to do is only write to that corresponding eventfd.  To write
+  it in userspace, a simple <b>write()</b> syscall would suffice (actually
+  there is a libc call named <b>eventfd_write()</b>, however that's merely
+  a wrapper of the <b>write()</b> system call).  To do it in kernel, we can
+  use <b>eventfd_signal()</b> instead.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> How is irqfd implemented? </h2>
+<div class="outline-text-2" id="text-3">
+
+
+<p>
+  The main function to look at is <b>kvm_irqfd_assign()</b>.  Firstly,
+  one irqfd is represented as a <b>struct kvm_kernel_irqfd</b> object in
+  KVM.  Here <b>gsi</b> is the index of the guest's interrupt table that
+  this irqfd corresponds to.  Two works are initialized for interrupt
+  injection and destruction of irqfds:
+</p>
+
+
+
+<pre class="example">INIT_WORK(&amp;irqfd-&gt;inject, irqfd_inject);
+INIT_WORK(&amp;irqfd-&gt;shutdown, irqfd_shutdown);
+</pre>
+
+
+
+
+<p>  
+  Irqfd only accept eventfds, so we'll check against this and cache
+  the eventfd context:
+</p>
+
+
+
+<pre class="example">eventfd = eventfd_ctx_fileget(f.file);
+if (IS_ERR(eventfd)) {
+        ret = PTR_ERR(eventfd);
+        goto fail;
+}
+</pre>
+
+
+
+
+<p>  
+  The most important thing for irqfd is to connect the fd signal to an
+  gsi interrupt in guest.  Here we need to provide our own wait queue
+  handler to do that deliver to show <b>how do we want to be waked up</b>,
+  which is <b>irqfd_wakeup()</b>:
+</p>
+
+
+
+<pre class="example">init_waitqueue_func_entry(&amp;irqfd-&gt;wait, irqfd_wakeup);
+</pre>
+
+
+
+
+<p>  
+  Setup the wait queue entry is not enough, we need to do explicit
+  <b>poll()</b> to start polling on that fd, so when someone issues a write
+  or signal, we can be notified:
+</p>
+
+
+
+<pre class="example">init_poll_funcptr(&amp;irqfd-&gt;pt, irqfd_ptable_queue_proc);
+...
+events = f.file-&gt;f_op-&gt;poll(f.file, &amp;irqfd-&gt;pt);
+</pre>
+
+
+
+
+<p>  
+  Here the <b>init_poll_funcptr()</b> is not that important, it just let
+  the poll() code know <b>how to setup the wait process</b>.  Here we just
+  add the wait entry onto the eventfd context's wait queue head.  The
+  following <b>f.file-&gt;f_op-&gt;poll()</b> actually triggers the
+  <b>eventfd_poll()</b>, then the common <b>poll_wait()</b> to insert that
+  wait queue entry onto the context's wait queue.
+</p></div>
+</div>
+</div>
+
+<div id="postamble">
+<p class="date">Date: 2017-12-07 15:46:05 CST</p>
+<p class="author">Author: peterx</p>
+<p class="creator">Org version 7.7 with Emacs version 25</p>
+<a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
+
+</div>
+</body>
+</html>

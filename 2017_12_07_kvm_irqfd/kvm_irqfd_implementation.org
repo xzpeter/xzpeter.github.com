@@ -1,0 +1,77 @@
+#+TITLE: KVM Irqfd Introduction
+
+* About this page
+
+  This page is going to sololy talk about irqfd in KVM, on what it is,
+  and also how it is implemented.  The code references come from Linux
+  4.14.
+
+* What does irqfd do?
+
+  Irqfd in KVM is implemented based on eventfd in Linux.  Eventfd is a
+  simple and fast notification mechanism in Linux kernel to deliver a
+  single and simple message, just like interrupts.
+
+  As its name shows, irqfd is basically a fd that is bound to an
+  interrupt in the virtual machine.  Here the fd must be an eventfd.
+  The delivery path is single direction, say, interrupt is delivered
+  from outside world into the guest.  There is another thing called
+  ioeventfd which does the reverse thing that is a hypercall from
+  guest to the host, which is out of the scope of this article.
+  
+  With irqfd, if we want to trigger an interrupt we have setup, what
+  we need to do is only write to that corresponding eventfd.  To write
+  it in userspace, a simple *write()* syscall would suffice (actually
+  there is a libc call named *eventfd\_write()*, however that's merely
+  a wrapper of the *write()* system call).  To do it in kernel, we can
+  use *eventfd\_signal()* instead.
+
+* How is irqfd implemented?
+
+  The main function to look at is *kvm\_irqfd\_assign()*.  Firstly,
+  one irqfd is represented as a *struct kvm\_kernel\_irqfd* object in
+  KVM.  Here *gsi* is the index of the guest's interrupt table that
+  this irqfd corresponds to.  Two works are initialized for interrupt
+  injection and destruction of irqfds:
+
+#+BEGIN_SRC c
+INIT_WORK(&irqfd->inject, irqfd_inject);
+INIT_WORK(&irqfd->shutdown, irqfd_shutdown);
+#+END_SRC
+  
+  Irqfd only accept eventfds, so we'll check against this and cache
+  the eventfd context:
+  
+#+BEGIN_SRC c
+eventfd = eventfd_ctx_fileget(f.file);
+if (IS_ERR(eventfd)) {
+        ret = PTR_ERR(eventfd);
+        goto fail;
+}
+#+END_SRC
+  
+  The most important thing for irqfd is to connect the fd signal to an
+  gsi interrupt in guest.  Here we need to provide our own wait queue
+  handler to do that deliver to show *how do we want to be waked up*,
+  which is *irqfd\_wakeup()*:
+
+#+BEGIN_SRC c
+init_waitqueue_func_entry(&irqfd->wait, irqfd_wakeup);
+#+END_SRC
+  
+  Setup the wait queue entry is not enough, we need to do explicit
+  *poll()* to start polling on that fd, so when someone issues a write
+  or signal, we can be notified:
+
+#+BEGIN_SRC c
+init_poll_funcptr(&irqfd->pt, irqfd_ptable_queue_proc);
+...
+events = f.file->f_op->poll(f.file, &irqfd->pt);
+#+END_SRC
+  
+  Here the *init\_poll\_funcptr()* is not that important, it just let
+  the poll() code know *how to setup the wait process*.  Here we just
+  add the wait entry onto the eventfd context's wait queue head.  The
+  following *f.file->f\_op->poll()* actually triggers the
+  *eventfd\_poll()*, then the common *poll\_wait()* to insert that
+  wait queue entry onto the context's wait queue.
