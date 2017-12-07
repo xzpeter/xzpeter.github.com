@@ -9,6 +9,7 @@
 * Articles
 
 - [[file:SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]]
+- [[file:vfio-device-assignment/vfio-device-assignment-with-iommu.html][QEMU VFIO Device Assignment With vIOMMUs]]
 
 * Misc
 
