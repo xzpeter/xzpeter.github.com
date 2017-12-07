@@ -1,16 +1,27 @@
-#+TITLE: xzpeter's hut
+#+TITLE: Peter Xu's Hub
+#+AUTHOR: Peter Xu <peterx@redhat.com>
 #+OPTIONS: toc:t num:t
 
-* Introduction
+* About Me
 
-  This is Peter Xu's home page. It's not pretty, only a place to put
-  something in.
+  I'm Peter Xu, a software developer from Beijing, China.  I worked on
+  storage and virtualization.  Currently I am working for Red Hat
+  virtualization team.  I have an account _xzpeter_ on gmail, post me
+  an email if you want to.  :-)
 
 * Articles
 
-- [[file:SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]]
-- [[file:vfio-device-assignment/vfio-device-assignment-with-iommu.html][QEMU VFIO Device Assignment With vIOMMUs]]
+- [[file:SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]]: This is a measurement document of 15K SAS
+  drive which was done quite a few years ago.
+
+- [[file:vfio-device-assignment/vfio-device-assignment-with-iommu.html][QEMU VFIO Device Assignment With vIOMMUs]]: This explains a bit about
+  how QEMU VFIO device assignment worked with vIOMMUs.
 
 * Misc
 
-- [[http://xzpeter.github.com/starwar][My StarWar game homepage]]
+- [[http://xzpeter.github.com/starwar][My StarWar game homepage]]: A tiny stupid game that I wrote in Common
+  Lisp during my study time.
+  
+* Contact
+  
+  Please see "About Me" section.
