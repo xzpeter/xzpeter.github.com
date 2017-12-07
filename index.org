@@ -14,7 +14,7 @@
 - [[file:2013_02_08_15K_SAS_benchmark/SAS-15K-disk-benchmark-and-study.html][15K SAS Drive benchmark]] This is a measurement document of 15K SAS
   drive which was done quite a few years ago.
 
-- [[file:vfio-device-assignment/vfio-device-assignment-with-iommu.html][QEMU VFIO Device Assignment With vIOMMUs]]: This explains a bit about
+- [[file:2017_03_02_vfio_viommu/vfio-device-assignment-with-iommu.html][QEMU VFIO Device Assignment With vIOMMUs]] This explains a bit about
   how QEMU VFIO device assignment worked with vIOMMUs.
 
 * Misc
