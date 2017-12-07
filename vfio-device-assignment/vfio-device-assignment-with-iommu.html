@@ -7,7 +7,7 @@ lang="en" xml:lang="en">
 <title>QEMU Device Assignment with vIOMMU Protection</title>
 <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
 <meta name="generator" content="Org-mode"/>
-<meta name="generated" content="2017-03-02 13:02:36 CST"/>
+<meta name="generated" content="2017-12-07 13:57:31 CST"/>
 <meta name="author" content="Peter Xu"/>
 <meta name="description" content=""/>
 <meta name="keywords" content=""/>
@@ -109,6 +109,13 @@ lang="en" xml:lang="en">
 <p>
 This page describes use cases for device assignment with vIOMMU.
 </p>
+<p>
+This page will mostly talk about DMA protections that IOMMU/vIOMMU
+provides. Besides that, IOMMU can provide further protections like
+Interrupt Remapping (IR) in a similar way that DMA protections are
+done. A well protected system will not only need DMA but also IRQ
+protections.
+</p>
 </div>
 
 </div>
@@ -130,7 +137,7 @@ Below picture shows a basic device assignment use case in QEMU.
 <p>
 Let's consider a generic <b>PCI device</b> above, which is a real hardware
 attached to host system. The host can use generic kernel drivers to
-drivet the device. In that case, all the reads/writes of that device
+drive the device. In that case, all the reads/writes of that device
 will be protected by <b>host IOMMU</b>, which is safe. The <b>protected DMAs</b>
 are shown in <i>green arrow</i>.
 </p>
@@ -180,12 +187,15 @@ vIOMMU to do DMA protections. With that, guest DMAs are safe now.
 </p>
 <p>
 Here, our use case targets at the guests that are using kernel
-drivers. One thing to mention is that, currently this use case will
-possibly have magnificant performance impact on the assigned device,
-due to dynamic allocation of guest IOVA mapping will cause lots of
-work in the hypervisor to sync the shadow page table in the real
-hardware. More work is needed to further reduce the negative impact
-that the protection has brought.
+drivers. One thing to mention is that, currently, this use case can
+have significant performance impact on the assigned device. The
+dynamic allocation of guest IOVA mapping will cause lots of work in
+the hypervisor in order to sync the shadow page table with the real
+hardware. However, in cases where the memory mapping is static, there
+should not have a significant impact on the performance (DPDK is one
+use case, which I'll mention specifically in the next chapter). With
+the general case of dynamic memory mapping, more work is needed to
+further reduce the negative impact that the protection has brought.
 </p>
 </div>
 
@@ -199,12 +209,25 @@ that the protection has brought.
 <p>  
 DPDK (the so-called DataPlan Development Kit) is vastly used in high
 performance scenarios, which moved the kernel space drivers into
-userspace for the sake of even better performance. That introduce a
-problem that since we cannot really trust any userspace application
-program, we cannot trust DPDK applications as well, especially if it
-can directly manipulate the hardware. Here vIOMMU protects not only
-the malicious devices like hardware errors, it also protects guest
-from buggy userspace drivers like DPDK (via VFIO driver in the guest).
+userspace for the sake of even better performance. Normally, the DPDK
+program can run directly inside a bare metal to achieve the best
+performance with specific hardware. Meanwhile, it can also be run
+inside guest to drive either an assigned device from host, or an
+emulated device like virtio ones.
+</p>
+<p>
+For the guest DPDK use case mentioned, host can still continue
+leveraging DPDK to maximum the packet delivery in the virtual
+switches. OVS-DPDK is a good example.
+</p>
+<p>
+Nevertheless, DPDK introduced a problem that since we cannot really
+trust any userspace application program, we cannot trust DPDK
+applications as well, especially if it can have full access to the
+system memory via the hardware and taint the kernel address space.
+Here vIOMMU protects not only the malicious devices like hardware
+errors, it also protects guest from buggy userspace drivers like DPDK
+(via VFIO driver in the guest).
 </p>
 <p>
 Actually there are at least three ways that DPDK applications can
@@ -283,7 +306,7 @@ Nested device assignment looks like:
 </div>
 
 <div id="postamble">
-<p class="date">Date: 2017-03-02 13:02:36 CST</p>
+<p class="date">Date: 2017-12-07 13:57:31 CST</p>
 <p class="author">Author: Peter Xu</p>
 <p class="creator">Org version 7.7 with Emacs version 25</p>
 <a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>

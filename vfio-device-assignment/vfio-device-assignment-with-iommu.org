@@ -5,6 +5,12 @@
 
 This page describes use cases for device assignment with vIOMMU.
 
+This page will mostly talk about DMA protections that IOMMU/vIOMMU
+provides. Besides that, IOMMU can provide further protections like
+Interrupt Remapping (IR) in a similar way that DMA protections are
+done. A well protected system will not only need DMA but also IRQ
+protections.
+
 * Guest Device Assignment in General
   
 Below picture shows a basic device assignment use case in QEMU.
@@ -14,7 +20,7 @@ Below picture shows a basic device assignment use case in QEMU.
 
 Let's consider a generic *PCI device* above, which is a real hardware
 attached to host system. The host can use generic kernel drivers to
-drivet the device. In that case, all the reads/writes of that device
+drive the device. In that case, all the reads/writes of that device
 will be protected by *host IOMMU*, which is safe. The *protected DMAs*
 are shown in /green arrow/.
 
@@ -49,23 +55,37 @@ In the above figure, the only difference is that we introduced guest
 vIOMMU to do DMA protections. With that, guest DMAs are safe now.
 
 Here, our use case targets at the guests that are using kernel
-drivers. One thing to mention is that, currently this use case will
-possibly have magnificant performance impact on the assigned device,
-due to dynamic allocation of guest IOVA mapping will cause lots of
-work in the hypervisor to sync the shadow page table in the real
-hardware. More work is needed to further reduce the negative impact
-that the protection has brought.
+drivers. One thing to mention is that, currently, this use case can
+have significant performance impact on the assigned device. The
+dynamic allocation of guest IOVA mapping will cause lots of work in
+the hypervisor in order to sync the shadow page table with the real
+hardware. However, in cases where the memory mapping is static, there
+should not have a significant impact on the performance (DPDK is one
+use case, which I'll mention specifically in the next chapter). With
+the general case of dynamic memory mapping, more work is needed to
+further reduce the negative impact that the protection has brought.
 
 * Use Case 2: Guest Device Assignment with vIOMMU - DPDK Scenario
   
 DPDK (the so-called DataPlan Development Kit) is vastly used in high
 performance scenarios, which moved the kernel space drivers into
-userspace for the sake of even better performance. That introduce a
-problem that since we cannot really trust any userspace application
-program, we cannot trust DPDK applications as well, especially if it
-can directly manipulate the hardware. Here vIOMMU protects not only
-the malicious devices like hardware errors, it also protects guest
-from buggy userspace drivers like DPDK (via VFIO driver in the guest).
+userspace for the sake of even better performance. Normally, the DPDK
+program can run directly inside a bare metal to achieve the best
+performance with specific hardware. Meanwhile, it can also be run
+inside guest to drive either an assigned device from host, or an
+emulated device like virtio ones.
+
+For the guest DPDK use case mentioned, host can still continue
+leveraging DPDK to maximum the packet delivery in the virtual
+switches. OVS-DPDK is a good example.
+
+Nevertheless, DPDK introduced a problem that since we cannot really
+trust any userspace application program, we cannot trust DPDK
+applications as well, especially if it can have full access to the
+system memory via the hardware and taint the kernel address space.
+Here vIOMMU protects not only the malicious devices like hardware
+errors, it also protects guest from buggy userspace drivers like DPDK
+(via VFIO driver in the guest).
 
 Actually there are at least three ways that DPDK applications can
 manage a device in the userspace (and these methods are mostly general
