@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+lang="en" xml:lang="en">
+<head>
+<title>Notes for Linux hrtimer</title>
+<meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="2019-04-11 16:54:04 CST"/>
+<meta name="author" content="xz"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+
+</head>
+<body>
+
+<div id="preamble">
+
+</div>
+
+<div id="content">
+<h1 class="title">Notes for Linux hrtimer</h1>
+
+<p>This is based on Linux version 5.0.0.
+</p>
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 How the hrtimer interrupt is setup? </a></li>
+<li><a href="#sec-2">2 How is the 1000Hz tick setup? </a></li>
+<li><a href="#sec-3">3 How to setup the basic RT environment on a host? </a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> How the hrtimer interrupt is setup? </h2>
+<div class="outline-text-2" id="text-1">
+
+
+<p>
+I'm taking my laptop as an example here to learn how the timers worked
+in Linux.  Currently it has HPET as broadcast clockevent and for each
+core there's the lapic-deadline as clockevent:
+</p>
+
+
+
+<pre class="example">xz-x1:clockevents # pwd
+/sys/devices/system/clockevents
+xz-x1:clockevents # cat broadcast/current_device 
+hpet
+xz-x1:clockevents # cat clockevent0/current_device 
+lapic-deadline
+</pre>
+
+
+
+<p>
+Initially, per-core APICs are not used, instead, HPET is used
+globally.  I believe that is the default timer we used right after
+Linux boots (we should be able to see that after boot and I've got 28
+interrupts from that only on BSP, which is CPU0):
+</p>
+
+
+
+<pre class="example">xz-x1:~ # cat /proc/interrupts | grep timer$
+   0:         28          0          0          0          0          0          0          0  IR-IO-APIC    2-edge      timer
+</pre>
+
+
+
+<p>
+Later on after logging into the Linux system, this interrupt never
+generated for me again because APICs/hrtimers are now working.
+</p>
+<p>
+And even before until this point that we start to use the hrtimer,
+there's actually a very short period that the system is not using
+hires timer yet and tick_handle_periodic is armed.  The switching
+happened at some of the tick_handle_periodic for each core:
+</p>
+
+
+
+<pre class="example">- smp_apic_timer_interrupt
+  - tick_handle_periodic
+    - tick_periodic
+      - update_process_times
+        - run_local_timers
+          - hrtimer_run_queues
+            - hrtimer_switch_to_hres
+</pre>
+
+
+
+<p>
+It'll happen N times (N is the number of cores on the system).  Then
+the timer interrupt stack becomes this (which is of course still
+per-core):
+</p>
+
+
+
+<pre class="example">- smp_apic_timer_interrupt
+  - hrtimer_interrupt
+    - __hrtimer_run_queues
+      - tick_sched_timer
+        - tick_sched_do_timer
+          - tick_do_update_jiffies64.part.19
+            - do_timer
+</pre>
+
+
+
+</div>
+
+</div>
+
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> How is the 1000Hz tick setup? </h2>
+<div class="outline-text-2" id="text-2">
+
+
+<p>
+  The handler is tick_sched_timer, which is also implemented using
+  hrtimer.  And it's armed at exactly when we switch from the normal
+  timer to hrtimer (during hrtimer_switch_to_hres).
+</p>
+<p>
+  We setup the tick interval at tick_setup_device, where we do:
+</p>
+
+
+
+<pre class="example">tick_period = NSEC_PER_SEC / HZ;
+</pre>
+
+
+
+<p>  
+  So on each CPU we'll have this 1000hz tick sched timer, but only one
+  of them will be running the housekeeping code (in
+  tick_sched_do_timer):
+</p>
+
+
+
+<pre class="example">/* Check, if the jiffies need an update */
+if (tick_do_timer_cpu == cpu)
+        tick_do_update_jiffies64(now);
+</pre>
+
+
+</div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> How to setup the basic RT environment on a host? </h2>
+<div class="outline-text-2" id="text-3">
+
+
+<p>
+  Firstly, we need to tune BIOS, e.g., we should use the performance
+  mode rather than balanced mode (which could try to do some power
+  management while we don't want that for real-time).  Remove all the
+  USB/legacy device support.  We need at least these parameters to
+  isolate some of the system's CPUs (this is using CPU7 as example):
+</p>
+
+
+
+<pre class="example">isolcpus=7 nohz_full=7 nosoftlockup
+</pre>
+
+
+
+<p>
+  The <span style="text-decoration:underline;">isolcpus</span> parameter will do the isolation for that CPU so
+  e.g. it won't be there in the default schedule target of general
+  processes (simply try <b>taskset -pc $$</b> within your shell to know
+  which CPU your shell could be run upon; if you used <span style="text-decoration:underline;">isolcpus</span> then
+  you'll see that the isolated CPUs will <span style="text-decoration:underline;">not</span> be there).
+</p>
+<p>
+  The <span style="text-decoration:underline;">nohz_full</span> is required to really turn on the nohz_full
+  feature.  That allows dynamic tick to happen on the CPU as long as:
+</p>
+<ol>
+<li>the CPU is idle, or,
+</li>
+<li>there is only one process running on the CPU.
+</li>
+</ol>
+
+
+<p>  
+  The <span style="text-decoration:underline;">nosoftlockup</span> parameter is used to disable soft watchdog on the
+  system otherwise you'll be able to observe the "migration/N" thread
+  running for every 4 seconds even on isolated CPUs.
+</p></div>
+</div>
+</div>
+
+<div id="postamble">
+<p class="date">Date: 2019-04-11 16:54:04 CST</p>
+<p class="author">Author: xz</p>
+<p class="creator">Org version 7.7 with Emacs version 26</p>
+<a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,109 @@
+#+TITLE: Notes for Linux hrtimer
+
+This is based on Linux version 5.0.0.
+
+* How the hrtimer interrupt is setup?
+
+I'm taking my laptop as an example here to learn how the timers worked
+in Linux.  Currently it has HPET as broadcast clockevent and for each
+core there's the lapic-deadline as clockevent:
+
+#+BEGIN_EXAMPLE
+xz-x1:clockevents # pwd
+/sys/devices/system/clockevents
+xz-x1:clockevents # cat broadcast/current_device 
+hpet
+xz-x1:clockevents # cat clockevent0/current_device 
+lapic-deadline
+#+END_EXAMPLE
+
+Initially, per-core APICs are not used, instead, HPET is used
+globally.  I believe that is the default timer we used right after
+Linux boots (we should be able to see that after boot and I've got 28
+interrupts from that only on BSP, which is CPU0):
+
+#+BEGIN_EXAMPLE
+xz-x1:~ # cat /proc/interrupts | grep timer$
+   0:         28          0          0          0          0          0          0          0  IR-IO-APIC    2-edge      timer
+#+END_EXAMPLE
+
+Later on after logging into the Linux system, this interrupt never
+generated for me again because APICs/hrtimers are now working.
+
+And even before until this point that we start to use the hrtimer,
+there's actually a very short period that the system is not using
+hires timer yet and tick_handle_periodic is armed.  The switching
+happened at some of the tick_handle_periodic for each core:
+
+#+BEGIN_EXAMPLE
+- smp_apic_timer_interrupt
+  - tick_handle_periodic
+    - tick_periodic
+      - update_process_times
+        - run_local_timers
+          - hrtimer_run_queues
+            - hrtimer_switch_to_hres
+#+END_EXAMPLE
+
+It'll happen N times (N is the number of cores on the system).  Then
+the timer interrupt stack becomes this (which is of course still
+per-core):
+
+#+BEGIN_EXAMPLE
+- smp_apic_timer_interrupt
+  - hrtimer_interrupt
+    - __hrtimer_run_queues
+      - tick_sched_timer
+        - tick_sched_do_timer
+          - tick_do_update_jiffies64.part.19
+            - do_timer
+#+END_EXAMPLE
+
+* How is the 1000Hz tick setup?
+
+  The handler is tick_sched_timer, which is also implemented using
+  hrtimer.  And it's armed at exactly when we switch from the normal
+  timer to hrtimer (during hrtimer_switch_to_hres).
+
+  We setup the tick interval at tick_setup_device, where we do:
+
+#+BEGIN_EXAMPLE
+tick_period = NSEC_PER_SEC / HZ;
+#+END_EXAMPLE
+  
+  So on each CPU we'll have this 1000hz tick sched timer, but only one
+  of them will be running the housekeeping code (in
+  tick_sched_do_timer):
+
+#+BEGIN_EXAMPLE
+/* Check, if the jiffies need an update */
+if (tick_do_timer_cpu == cpu)
+        tick_do_update_jiffies64(now);
+#+END_EXAMPLE
+* How to setup the basic RT environment on a host?
+
+  Firstly, we need to tune BIOS, e.g., we should use the performance
+  mode rather than balanced mode (which could try to do some power
+  management while we don't want that for real-time).  Remove all the
+  USB/legacy device support.  We need at least these parameters to
+  isolate some of the system's CPUs (this is using CPU7 as example):
+
+#+BEGIN_EXAMPLE
+isolcpus=7 nohz_full=7 nosoftlockup
+#+END_EXAMPLE
+
+  The _isolcpus_ parameter will do the isolation for that CPU so
+  e.g. it won't be there in the default schedule target of general
+  processes (simply try *taskset -pc $$* within your shell to know
+  which CPU your shell could be run upon; if you used _isolcpus_ then
+  you'll see that the isolated CPUs will _not_ be there).
+
+  The _nohz_full_ is required to really turn on the nohz_full
+  feature.  That allows dynamic tick to happen on the CPU as long as:
+  
+  1. the CPU is idle, or,
+  2. there is only one process running on the CPU.
+  
+  The _nosoftlockup_ parameter is used to disable soft watchdog on the
+  system otherwise you'll be able to observe the "migration/N" thread
+  running for every 4 seconds even on isolated CPUs.

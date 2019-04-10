@@ -17,6 +17,8 @@
 - [[file:2017_03_02_vfio_viommu/vfio-device-assignment-with-iommu.html][QEMU VFIO Device Assignment With vIOMMUs]] This explains a bit about
   how QEMU VFIO device assignment worked with vIOMMUs.
 
+- [[file:2018_04_10_hrtimer/timer-notes.html][Notes on Linux hrtimer]]
+
 * Misc
 
 - [[http://xzpeter.github.com/starwar][My StarWar game homepage]]: A tiny stupid game that I wrote in Common
