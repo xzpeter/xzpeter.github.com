@@ -105,5 +105,14 @@ isolcpus=7 nohz_full=7 nosoftlockup
   2. there is only one process running on the CPU.
   
   The _nosoftlockup_ parameter is used to disable soft watchdog on the
-  system otherwise you'll be able to observe the "migration/N" thread
-  running for every 4 seconds even on isolated CPUs.
+  system, I think it might not really be needed because as long as you
+  specify _nohz_full_ then they'll also apply to
+  _watchdog_allowed_cpumask_ however it won't hurt to have it.
+
+* Why hrtimer has two expire times?
+
+  Just read the commit 654c8e0b1c62 ("hrtimer: turn hrtimers into
+  range timers", 2008-09-05) and it'll tell you.  In short, the
+  expiry of the timer is a range which is (soft, hard).  When soft
+  equals to hard, then you request the timer to be waked up at exactly
+  the time.

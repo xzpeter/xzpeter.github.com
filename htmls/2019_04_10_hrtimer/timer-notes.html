@@ -7,7 +7,7 @@ lang="en" xml:lang="en">
 <title>Notes for Linux hrtimer</title>
 <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
 <meta name="generator" content="Org-mode"/>
-<meta name="generated" content="2019-04-11 16:54:04 CST"/>
+<meta name="generated" content="2019-04-12 14:53:29 CST"/>
 <meta name="author" content="xz"/>
 <meta name="description" content=""/>
 <meta name="keywords" content=""/>
@@ -97,6 +97,7 @@ lang="en" xml:lang="en">
 <li><a href="#sec-1">1 How the hrtimer interrupt is setup? </a></li>
 <li><a href="#sec-2">2 How is the 1000Hz tick setup? </a></li>
 <li><a href="#sec-3">3 How to setup the basic RT environment on a host? </a></li>
+<li><a href="#sec-4">4 Why hrtimer has two expire times? </a></li>
 </ul>
 </div>
 </div>
@@ -266,14 +267,31 @@ if (tick_do_timer_cpu == cpu)
 
 <p>  
   The <span style="text-decoration:underline;">nosoftlockup</span> parameter is used to disable soft watchdog on the
-  system otherwise you'll be able to observe the "migration/N" thread
-  running for every 4 seconds even on isolated CPUs.
+  system, I think it might not really be needed because as long as you
+  specify <span style="text-decoration:underline;">nohz_full</span> then they'll also apply to
+  <span style="text-decoration:underline;">watchdog_allowed_cpumask</span> however it won't hurt to have it.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> Why hrtimer has two expire times? </h2>
+<div class="outline-text-2" id="text-4">
+
+
+<p>
+  Just read the commit 654c8e0b1c62 ("hrtimer: turn hrtimers into
+  range timers", 2008-09-05) and it'll tell you.  In short, the
+  expiry of the timer is a range which is (soft, hard).  When soft
+  equals to hard, then you request the timer to be waked up at exactly
+  the time.
 </p></div>
 </div>
 </div>
 
 <div id="postamble">
-<p class="date">Date: 2019-04-11 16:54:04 CST</p>
+<p class="date">Date: 2019-04-12 14:53:29 CST</p>
 <p class="author">Author: xz</p>
 <p class="creator">Org version 7.7 with Emacs version 26</p>
 <a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
