@@ -159,13 +159,13 @@ overhead to uffd-wp.
 
 Here's a summary of all the measurements (raw data can be found [here][data]):
 
-    |----------------------+---------------+---------------+----------+--------|
-    | Test Mode            | Receiving Msg | #PF Resolving | Complete | Total  |
-    |----------------------+---------------+---------------+----------+--------|
-    | mprotect() + SIGSEGV | 0.74us        | 0.36us        | 0.81us   | 1.92us |
-    | uffd-wp              | 2.43us        | 1.16us        | 1.15us   | 4.74us |
-    | uffd-wp + SIGBUS     | 0.77us        | 0.27us        | 0.81us   | 1.85us |
-    |----------------------+---------------+---------------+----------+--------|
+|----------------------+---------------+---------------+----------+--------|
+| Test Mode            | Receiving Msg | #PF Resolving | Complete | Total  |
+|----------------------+---------------+---------------+----------+--------|
+| mprotect() + SIGSEGV | 0.74us        | 0.36us        | 0.81us   | 1.92us |
+| uffd-wp              | 2.43us        | 1.16us        | 1.15us   | 4.74us |
+| uffd-wp + SIGBUS     | 0.77us        | 0.27us        | 0.81us   | 1.85us |
+|----------------------+---------------+---------------+----------+--------|
 
 Although userfaultfd-wp should have brought significantly new features for old
 mprotect() scenarios, it probably does not mean that uffd-wp will always be
