@@ -140,7 +140,7 @@ we'll send a SIGBUS when write protection happens.
 
 To run with userfaultfd-wp SIGBUS mode, we can use:
 
-    ./uffd uffd-wp
+    ./uffd uffd-wp-sigbus
 
 With the same program.  A total average of overhead is ***1.85us***, and for
 each steps:
