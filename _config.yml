@@ -1,6 +1,6 @@
-title: "Homepage for Peter Xu"
+title: "Peter's Hub"
 author: "Peter Xu"
-description: "This is the homepage for Peter Xu"
+description: "I know that I know nothing."
 permalink: /:title/
 lang: "en"
 excerpt_separator: "\n\n\n"
@@ -23,12 +23,11 @@ minimal: false               # use simpler style
 
 navigation:
   - {file: "index.html", icon: home}
-  - {file: "README.md", icon: address-card}
+  - {file: "about.markdown", icon: about}
 
 external:                    # see http://fontawesome.com/icons
-#  - {title: Mail, icon: envelope, url: "mailto:niklasbuschmann@users.noreply.github.com"}
-#  - {title: Github, icon: github, url: "https://github.com/niklasbuschmann/contrast"}
-#  - {title: Subscribe, icon: rss, url: "/feed.xml"}
+  - {title: Mail, icon: envelope, url: "mailto:xzpeter@gmail.com"}
+  - {title: Subscribe, icon: rss, url: "/feed.xml"}
 
 comments:
 #  disqus_shortname: ""      # see https://disqus.com/
