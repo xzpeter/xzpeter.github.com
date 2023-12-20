@@ -4,9 +4,8 @@ title: About
 permalink: /about/
 ---
 
-I'm Peter Xu as a software engineer.  I was born in Beijing, however recently I
-live in Toronto.  I worked on storage initially for a few years, then (until
-now) I have been working for Red Hat in virtualization team.
+I'm Peter Xu and I'm a software engineer.  I live in Aurora, Canada.  I
+mostly work on virtualizations.
 
 My Chinese name is "徐哲".
 
